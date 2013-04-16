@@ -1,0 +1,62 @@
+(require 'log4e)
+(require 'el-expectations)
+
+
+(expectations
+  (desc "deflogger define variable")
+  (expect t
+    (log4e:deflogger "hoge" "%m" "%S")
+    (and (boundp 'log4e--log-buffer-hoge)
+         (boundp 'log4e--log-templete-hoge)
+         (boundp 'log4e--time-templete-hoge)
+         (boundp 'log4e--min-level-hoge)
+         (boundp 'log4e--max-level-hoge)
+         (boundp 'log4e--toggle-logging-hoge)
+         (boundp 'log4e--toggle-debugging-hoge)
+         (boundp 'log4e--buffer-coding-system-hoge)
+         (boundp 'log4e--author-mail-address-hoge))))
+
+(expectations
+  (desc "deflogger define function")
+  (expect t
+    (log4e:deflogger "hoge" "%m" "%S")
+    (and (fboundp 'hoge--log-set-level)
+         (fboundp 'hoge--log-enable-logging)
+         (fboundp 'hoge--log-disable-logging)
+         (fboundp 'hoge--log-enable-debugging)
+         (fboundp 'hoge--log-disable-debugging)
+         (fboundp 'hoge--log-debugging-p)
+         (fboundp 'hoge--log-set-coding-system)
+         (fboundp 'hoge--log)
+         (fboundp 'hoge--log-fatal)
+         (fboundp 'hoge--log-error)
+         (fboundp 'hoge--log-warn)
+         (fboundp 'hoge--log-info)
+         (fboundp 'hoge--log-debug)
+         (fboundp 'hoge--log-trace)
+         (fboundp 'hoge--log-clear-log)
+         (fboundp 'hoge--log-open-log)
+         (fboundp 'hoge--log-open-log-if-debug))))
+
+(expectations
+  (desc "deflogger define custom function")
+  (expect t
+    (log4e:deflogger "fuga" "%m" "%S" '((fatal . "fat")
+                                        (error . "err")
+                                        (warn  . "war")
+                                        (info  . "inf")
+                                        (debug . "deb")
+                                        (trace . "tra")))
+    (and (fboundp 'fuga--fat)
+         (fboundp 'fuga--err)
+         (fboundp 'fuga--war)
+         (fboundp 'fuga--inf)
+         (fboundp 'fuga--deb)
+         (fboundp 'fuga--tra)
+         (not (fboundp 'fuga--log-fatal))
+         (not (fboundp 'fuga--log-error))
+         (not (fboundp 'fuga--log-warn))
+         (not (fboundp 'fuga--log-info))
+         (not (fboundp 'fuga--log-debug))
+         (not (fboundp 'fuga--log-trace)))))
+
