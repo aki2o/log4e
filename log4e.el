@@ -218,10 +218,11 @@ MAXLEVEL is symbol of highest level for doing logging. its default is 'fatal."
            (interactive)
            (setq ,tglsym nil))
          (defun ,(intern (concat prefix "--log-enable-debugging")) ()
-           "Enable debugging.
+           "Enable debugging and logging.
 
 `PREFIX--log-debugging-p' will return t."
            (interactive)
+           (setq ,tglsym t)
            (setq ,dbgsym t))
          (defun ,(intern (concat prefix "--log-disable-debugging")) ()
            "Disable debugging.
