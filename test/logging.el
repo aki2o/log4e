@@ -7,7 +7,7 @@
   (expect ""
     (makunbound 'log4e--toggle-logging-hoge)
     (log4e:deflogger "hoge" "%m" "%S")
-    (hoge--log-set-level 'fatal 'trace)
+    (hoge--log-set-level 'trace 'fatal)
     (hoge--log-clear-log)
     (hoge--log-fatal "test for fatal.")
     (hoge--log-error "test for error.")
@@ -25,7 +25,7 @@
     (makunbound 'log4e--log-templete-hoge)
     (makunbound 'log4e--time-templete-hoge)
     (log4e:deflogger "hoge" "%m" "%S")
-    (hoge--log-set-level 'fatal 'trace)
+    (hoge--log-set-level 'trace 'fatal)
     (hoge--log-enable-logging)
     (hoge--log-clear-log)
     (hoge--log-fatal "test for fatal.")
@@ -42,7 +42,7 @@
   (expect ""
     (makunbound 'log4e--toggle-logging-hoge)
     (log4e:deflogger "hoge" "%m" "%S")
-    (hoge--log-set-level 'fatal 'trace)
+    (hoge--log-set-level 'trace 'fatal)
     (hoge--log-enable-logging)
     (hoge--log-disable-logging)
     (hoge--log-clear-log)

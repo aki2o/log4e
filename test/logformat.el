@@ -36,7 +36,7 @@
     (makunbound 'log4e--log-templete-hoge)
     (makunbound 'log4e--time-templete-hoge)
     (log4e:deflogger "hoge" "%l:%m" "%H:%M:%S")
-    (hoge--log-set-level 'fatal 'trace)
+    (hoge--log-set-level 'trace 'fatal)
     (hoge--log-enable-logging)
     (hoge--log-clear-log)
     (hoge--log-fatal "It's fatal.")

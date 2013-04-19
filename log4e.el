@@ -57,12 +57,12 @@
 (eval-when-compile (require 'cl))
 
 
-(defvar log4e-log-level-alist '((fatal . 1)
-                                (error . 2)
-                                (warn  . 3)
-                                (info  . 4)
-                                (debug . 5)
-                                (trace . 6)))
+(defvar log4e-log-level-alist '((fatal . 6)
+                                (error . 5)
+                                (warn  . 4)
+                                (info  . 3)
+                                (debug . 2)
+                                (trace . 1)))
 
 (defvar log4e-log-function-name-alist '((fatal . "log-fatal")
                                         (error . "log-error")
@@ -98,14 +98,14 @@ Argument:
       yourprefix--log-debug
       ...
       yourprefix--log-fatal
-   - If you want to custom the name of them, pass like the following value.
+   - If you want to custom the name of them, give like the following value.
       '((fatal . \"fatal\")
         (error . \"error\")
         (warn  . \"warn\")
         (info  . \"info\")
         (debug . \"debug\")
         (trace . \"trace\"))
-     Then, define the followinn functions.
+     Then, define the following functions.
       yourprefix--trace
       yourprefix--debug
       ...
@@ -161,7 +161,7 @@ Example:
 12:34:56 [INFO ] done hoge about 'HOGEGE'
 
 ;; Eval the following
- (hoge--log-set-level 'fatal 'trace)
+ (hoge--log-set-level 'trace)
  (hoge-do-hoge \"FUGAGA\")
 
 ;; Do M-x hoge--log-open-log
@@ -196,17 +196,17 @@ Example:
          (defvar ,buffsym (format " *log4e-%s*" ,prefix))
          (defvar ,msgtmplsym ,msgtmpl)
          (defvar ,timetmplsym ,timetmpl)
-         (defvar ,minlvlsym 'fatal)
-         (defvar ,maxlvlsym 'info)
+         (defvar ,minlvlsym 'info)
+         (defvar ,maxlvlsym 'fatal)
          (defvar ,tglsym nil)
          (defvar ,dbgsym nil)
          (defvar ,codesym nil)
          (defvar ,addrsym nil)
-         (defun ,(intern (concat prefix "--log-set-level")) (minlevel maxlevel)
+         (defun ,(intern (concat prefix "--log-set-level")) (minlevel &optional maxlevel)
            "Set range for doing logging.
 
-MINLEVEL is symbol of lowest level for doing logging. its default is 'fatal.
-MAXLEVEL is symbol of highest level for doing logging. its default is 'info."
+MINLEVEL is symbol of lowest level for doing logging. its default is 'info.
+MAXLEVEL is symbol of highest level for doing logging. its default is 'fatal."
            (setq ,minlvlsym minlevel)
            (setq ,maxlvlsym maxlevel))
          (defun ,(intern (concat prefix "--log-enable-logging")) ()
@@ -341,13 +341,8 @@ MSGARGS is anything. They are expand in MSG as string."
       (with-current-buffer buff
         (let* ((timetext (format-time-string timetmpl))
                (lvltext (format "%-05s" (upcase (symbol-name level)))))
-          (put-text-property 0 (string-width timetext) 'face 'font-lock-doc-face timetext)
-          (put-text-property 0 (string-width lvltext) 'face 'font-lock-keyword-face lvltext)
-          (dolist (arg msgargs)
-            (when (not (stringp arg))
-              (ignore-errors
-                (setq arg (format "%s" arg))))
-            (put-text-property 0 (string-width arg) 'face 'font-lock-string-face arg))
+          (put-text-property 0 (length timetext) 'face 'font-lock-doc-face timetext)
+          (put-text-property 0 (length lvltext) 'face 'font-lock-keyword-face lvltext)
           (let* ((logtext msgtmpl)
                  (logtext (replace-regexp-in-string "%t" timetext logtext))
                  (logtext (replace-regexp-in-string "%l" lvltext logtext))
@@ -355,8 +350,22 @@ MSGARGS is anything. They are expand in MSG as string."
                  (startpt (progn (goto-char (point-max))
                                  (point))))
             (setq buffer-read-only nil)
-            (insert (apply 'format logtext msgargs) "\n")
-            (put-text-property startpt (+ startpt 1) 'log4e--level level)))))))
+            (insert logtext "\n")
+            (put-text-property startpt (+ startpt 1) 'log4e--level level)
+            (goto-char startpt)
+            (while (re-search-forward "\\(%[a-zA-Z]\\)" nil t)
+              (let* ((currtype (match-string-no-properties 1))
+                     (currarg (pop msgargs))
+                     (failfmt)
+                     (currtext (condition-case e
+                                   (format currtype currarg)
+                                 (error (setq failfmt t)
+                                        (format "=%s=" (error-message-string e))))))
+                (ignore-errors
+                  (cond (failfmt (put-text-property 0 (length currtext) 'face 'font-lock-warning-face currtext))
+                        (t       (put-text-property 0 (length currtext) 'face 'font-lock-string-face currtext))))
+                (replace-match currtext t t)))
+            (goto-char (point-max))))))))
 
 (defun log4e--get-or-create-log-buffer (buffnm &optional codesys)
   (or (get-buffer buffnm)
