@@ -115,21 +115,15 @@ Develop the elisp with logging.
         (hoge--info "done hoge about '%s'" hoge)))
 
 The logging functions are named by the 4th argument of `log4e:deflogger`.  
-The arguments of them are passed to `format` and its returned is used the message part of log.  
+The arguments of them are passed to `format` and its returned is used for the message part of log.  
 The returned of them is always nil.
 
 ### Enable/Disable logging
 
 By default, logging is disabled.  
-For doing logging, eval the following sexp.
-
-    (hoge--log-enable-logging)
-
-If you want to do logging anytime, write above sexp in the elisp.
-
-For stopping logging, eval the following sexp.
-
-    (hoge--log-disable-logging)
+For doing logging, use `hoge--log-enable-logging`.  
+If you want to do logging anytime, write `hoge--log-enable-logging` in the elisp.  
+For stopping logging, use `hoge--log-disable-logging`.
 
 ### Set range of logging
 
@@ -139,7 +133,7 @@ So, eval the following ...
     (hoge-do-hoge "HOGEGE")
     (hoge--log-open-log)
 
-The buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
+Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
 
     12:34:56 [INFO ] done hoge about 'HOGEGE'
 
@@ -152,14 +146,13 @@ Then, eval the following ...
     (hoge-do-hoge "FUGAGA")
     (hoge--log-open-log)
 
-The buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
+Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
 
     12:34:56 [INFO ] done hoge about 'HOGEGE'
     12:35:43 [DEBUG] start do hoge about 'FUGAGA'
     12:35:43 [INFO ] done hoge about 'FUGAGA'
 
-If you change the logging range anytime, write above sexp in the elisp.
-
+If you change the logging range anytime, write `hoge--log-set-level` in the elisp.  
 `hoge--log-set-level` receive the following arguments.
 
 1. The lowest level for doing logging. Its list is 'trace', 'debug', 'info', 'warn', 'error' and 'fatal'.
@@ -170,12 +163,9 @@ If you change the logging range anytime, write above sexp in the elisp.
 When you debug the elisp, eval the following ...
 
     (hoge--log-enable-debugging)
-
-Then, eval the following ...
-
     (hoge-do-hoge 'hogege)
 
-The buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
+Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
 
     12:34:56 [INFO ] done hoge about 'HOGEGE'
     12:35:43 [DEBUG] start do hoge about 'FUGAGA'
