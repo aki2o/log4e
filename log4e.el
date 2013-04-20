@@ -57,19 +57,21 @@
 (eval-when-compile (require 'cl))
 
 
-(defvar log4e-log-level-alist '((fatal . 6)
-                                (error . 5)
-                                (warn  . 4)
-                                (info  . 3)
-                                (debug . 2)
-                                (trace . 1)))
+(defconst log4e-log-level-alist '((fatal . 6)
+                                  (error . 5)
+                                  (warn  . 4)
+                                  (info  . 3)
+                                  (debug . 2)
+                                  (trace . 1))
+  "Alist of log level value")
 
-(defvar log4e-log-function-name-alist '((fatal . "log-fatal")
-                                        (error . "log-error")
-                                        (warn  . "log-warn")
-                                        (info  . "log-info")
-                                        (debug . "log-debug")
-                                        (trace . "log-trace")))
+(defconst log4e-default-logging-function-name-alist '((fatal . "log-fatal")
+                                                      (error . "log-error")
+                                                      (warn  . "log-warn")
+                                                      (info  . "log-info")
+                                                      (debug . "log-debug")
+                                                      (trace . "log-trace"))
+  "Alist of logging function name at default")
 
 
 (defmacro* log4e:deflogger (prefix msgtmpl timetmpl &optional log-function-name-custom-alist)
@@ -191,7 +193,7 @@ Example:
            (funcnm-alist (loop with custom-alist = (car (cdr log-function-name-custom-alist))
                                for e in (list 'fatal 'error 'warn 'info 'debug 'trace)
                                collect (or (assq e custom-alist)
-                                           (assq e log4e-log-function-name-alist)))))
+                                           (assq e log4e-default-logging-function-name-alist)))))
       `(progn
          (defvar ,buffsym (format " *log4e-%s*" ,prefix))
          (defvar ,msgtmplsym ,msgtmpl)
@@ -366,7 +368,8 @@ MSGARGS is anything. They are expand in MSG as string."
                   (cond (failfmt (put-text-property 0 (length currtext) 'face 'font-lock-warning-face currtext))
                         (t       (put-text-property 0 (length currtext) 'face 'font-lock-string-face currtext))))
                 (replace-match currtext t t)))
-            (goto-char (point-max))))))))
+            (goto-char (point-max))
+            nil))))))
 
 (defun log4e--get-or-create-log-buffer (buffnm &optional codesys)
   (or (get-buffer buffnm)

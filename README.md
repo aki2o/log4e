@@ -78,3 +78,128 @@ Download "log4e.el" manually and put it in your load-path.
 Usage
 =====
 
+For example, develop elisp with prefix "hoge".
+
+### Initially
+
+Write the following in the elisp.
+
+    (require 'log4e)
+    (log4e:deflogger "hoge" "%t [%l] %m" "%H:%M:%S" '((fatal . "fatal")
+                                                      (error . "error")
+                                                      (warn  . "warn")
+                                                      (info  . "info")
+                                                      (debug . "debug")
+                                                      (trace . "trace")))
+
+`log4e:deflogger` receive the following arguments.
+
+1. The elisp prefix.
+2. Format of log. The following words has a special meaning in it.
+    * %t ... Replaced with the 3rd argument.
+    * %l ... Replaced with LogLevel. Its list is "TRACE", "DEBUG", "INFO", "WARN", "ERROR" and "FATAL".
+    * %m ... Replaced with given message by the logging function. About them, see Coding section below.
+3. Format of time. This value is passed to `format-time-string` and replaced with its returend.
+4. Alist of the logging function name. This is optional. If nil, This value is `log4e-default-logging-function-name-alist`.
+
+### Coding
+
+Develop the elisp with logging.
+
+    (defun hoge-do-hoge (hoge)
+      (if (not (stringp hoge))
+          (progn (hoge--fatal "failed do hoge : hoge is '%s'" hoge)
+                 (hoge--log-open-log-if-debug))
+        (hoge--debug "start do hoge about '%s'" hoge)
+        (message "hoge!")
+        (hoge--info "done hoge about '%s'" hoge)))
+
+The logging functions are named by the 4th argument of `log4e:deflogger`.  
+The arguments of them are passed to `format` and its returned is used the message part of log.  
+The returned of them is always nil.
+
+### Enable/Disable logging
+
+By default, logging is disabled.  
+For doing logging, eval the following sexp.
+
+    (hoge--log-enable-logging)
+
+If you want to do logging anytime, write above sexp in the elisp.
+
+For stopping logging, eval the following sexp.
+
+    (hoge--log-disable-logging)
+
+### Set range of logging
+
+By default, The logging range is from 'info' to 'fatal'.  
+So, eval the following ...
+
+    (hoge-do-hoge "HOGEGE")
+    (hoge--log-open-log)
+
+The buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
+
+    12:34:56 [INFO ] done hoge about 'HOGEGE'
+
+If you change the logging range, eval the following sexp.
+
+    (hoge--log-set-level 'debug 'fatal)
+
+Then, eval the following ...
+
+    (hoge-do-hoge "FUGAGA")
+    (hoge--log-open-log)
+
+The buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
+
+    12:34:56 [INFO ] done hoge about 'HOGEGE'
+    12:35:43 [DEBUG] start do hoge about 'FUGAGA'
+    12:35:43 [INFO ] done hoge about 'FUGAGA'
+
+If you change the logging range anytime, write above sexp in the elisp.
+
+`hoge--log-set-level` receive the following arguments.
+
+1. The lowest level for doing logging. Its list is 'trace', 'debug', 'info', 'warn', 'error' and 'fatal'.
+2. The highest level for doing logging. This is optional. If nil, This value is 'fatal'.
+
+### For debug
+
+When you debug the elisp, eval the following ...
+
+    (hoge--log-enable-debugging)
+
+Then, eval the following ...
+
+    (hoge-do-hoge 'hogege)
+
+The buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
+
+    12:34:56 [INFO ] done hoge about 'HOGEGE'
+    12:35:43 [DEBUG] start do hoge about 'FUGAGA'
+    12:35:43 [INFO ] done hoge about 'FUGAGA'
+    12:54:32 [FATAL] failed do hoge : hoge is 'hogege'
+
+If you want to stop debugging, use `hoge--log-disable-debugging`.  
+If you want to verify activity of debugging in the elisp, use `hoge--log-debugging-p`.
+
+By using `hoge--log-enable-debugging`, logging is enabled too.
+
+### Other
+
+If you want to clear the log buffer named ' \*log4e-hoge\*', use `hoge--log-clear-log`.  
+If you want to do logging with changing log level by some condition locally, use `hoge--log`.
+
+`hoge--log` is base of the logging function. About them, see Coding section above.  
+It receive a log level as 1st argument.
+
+Tested On
+=========
+
+* Emacs ... GNU Emacs 23.3.1 (i386-mingw-nt5.1.2600) of 2011-08-15 on GNUPACK
+
+
+**Enjoy!!!**
+
