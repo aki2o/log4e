@@ -39,7 +39,7 @@ For detail, see Usage section.
 
 The image of logging buffer is the following ...
 
-![Demo1](demo1.png)
+![Demo1](image/demo1.png)
 
 The following face is used for font-lock on logging buffer.
 
