@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: log
 ;; URL: https://github.com/aki2o/log4e
-;; Version: 0.1
+;; Version: 0.2.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -37,12 +37,23 @@
 
 ;;; Configuration:
 ;; 
-;; Eval following sexp.
+;; See <https://github.com/aki2o/log4e/blob/master/README.md>
+;; Otherwise, eval following sexp.
 ;; (describe-function 'log4e:deflogger)
 
 ;;; API:
 ;; 
-;; See <https://github.com/aki2o/log4e/blob/master/README.md>
+;; [EVAL] (autodoc-document-lisp-buffer :type 'command :prefix "log4e:" :docstring t)
+;; `log4e:next-log'
+;; Move to start of next log on log4e-mode.
+;; `log4e:previous-log'
+;; Move to start of previous log on log4e-mode.
+;; `log4e:insert-start-log-quickly'
+;; Insert logging statment for trace level log at start of current function/macro.
+;; 
+;;  *** END auto-documentation
+;; 
+;; For detail, see <https://github.com/aki2o/log4e/blob/master/README.md>
 ;; 
 ;; [Note] Other than listed above, Those specifications may be changed without notice.
 
@@ -315,6 +326,7 @@ MSGARGS is anything. They are expand in MSG as string."
   (define-key log4e-mode-map (kbd "K") 'log4e:previous-log))
 
 (defun log4e:next-log ()
+  "Move to start of next log on log4e-mode."
   (interactive)
   (let* ((level))
     (while (and (not level)
@@ -324,6 +336,7 @@ MSGARGS is anything. They are expand in MSG as string."
     level))
 
 (defun log4e:previous-log ()
+  "Move to start of previous log on log4e-mode."
   (interactive)
   (let* ((level))
     (while (and (not level)
@@ -331,6 +344,48 @@ MSGARGS is anything. They are expand in MSG as string."
       (forward-line -1)
       (setq level (log4e--get-current-log-line-level)))
     level))
+
+(defun log4e:insert-start-log-quickly ()
+  "Insert logging statment for trace level log at start of current function/macro."
+  (interactive)
+  (let* ((fstartpt (when (re-search-backward "(\\(?:defun\\|defmacro\\)\\*? +\\([^ ]+\\) +(\\([^)]*\\))" nil t)
+                     (point)))
+         (fncnm (when fstartpt (match-string-no-properties 1)))
+         (argtext (when fstartpt (match-string-no-properties 2)))
+         (prefix (save-excursion
+                   (goto-char (point-min))
+                   (loop while (re-search-forward "(log4e:deflogger[ \n]+\"\\([^\"]+\\)\"" nil t)
+                         for prefix = (match-string-no-properties 1)
+                         for currface = (get-text-property (match-beginning 0) 'face)
+                         if (not (eq currface 'font-lock-comment-face))
+                         return prefix))))
+    (when (and fstartpt prefix)
+      (let* ((fncnm (replace-regexp-in-string (concat "\\`" prefix "[^a-zA-Z0-9]+") "" fncnm))
+             (fncnm (replace-regexp-in-string "-" " " fncnm))
+             (argtext (replace-regexp-in-string "\n" " " argtext))
+             (argtext (replace-regexp-in-string "^ +" "" argtext))
+             (argtext (replace-regexp-in-string " +$" "" argtext))
+             (args (split-string argtext " +"))
+             (args (loop for arg in args
+                         if (and (not (string= arg ""))
+                                 (not (string-match "\\`&" arg)))
+                         collect arg))
+             (logtext (loop with ret = (format "start %s." fncnm)
+                            for arg in args
+                            do (setq ret (concat ret " " arg "[%s]"))
+                            finally return ret))
+             (sexpformat (loop with ret = "(%s--log 'trace \"%s\""
+                               for arg in args
+                               do (setq ret (concat ret " %s"))
+                               finally return (concat ret ")")))
+             (inserttext (apply 'format sexpformat prefix logtext args)))
+        (forward-char)
+        (forward-sexp 3)
+        (when (re-search-forward "\\=[ \n]+\"" nil t)
+          (forward-char -1)
+          (forward-sexp))
+        (newline-and-indent)
+        (insert inserttext)))))
 
 
 (defun log4e--get-current-log-line-level ()
