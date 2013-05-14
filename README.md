@@ -180,7 +180,7 @@ By using `hoge--log-enable-debugging`, logging is enabled too.
 ### Insert logging statement quickly
 
 You can insert logging statement at your elisp by using `log4e:insert-start-log-quickly`.  
-The command insert `(hoge--log ...)` to start of current function/macro at the time.  
+The command insert `(hoge--log ...)` to start of pointed function/macro at the time.  
 If you want to bind some key to the command, write like the following in your .emacs or site-start.el file.
 
     (define-key emacs-lisp-mode-map (kbd "C-\\") 'log4e:insert-start-log-quickly)
