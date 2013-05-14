@@ -125,7 +125,7 @@ For doing logging, use `hoge--log-enable-logging`.
 If you want to do logging anytime, write `hoge--log-enable-logging` in the elisp.  
 For stopping logging, use `hoge--log-disable-logging`.
 
-### Set range of logging
+### Set range of logging level
 
 By default, The logging range is from 'info' to 'fatal'.  
 So, eval the following ...
@@ -176,6 +176,14 @@ If you want to stop debugging, use `hoge--log-disable-debugging`.
 If you want to verify activity of debugging in the elisp, use `hoge--log-debugging-p`.
 
 By using `hoge--log-enable-debugging`, logging is enabled too.
+
+### Insert logging statement quickly
+
+You can insert logging statement at your elisp by using `log4e:insert-start-log-quickly`.  
+The command insert `(hoge--log ...)` to start of current function/macro at the time.  
+If you want to bind some key to the command, write like the following in your .emacs or site-start.el file.
+
+    (define-key emacs-lisp-mode-map (kbd "C-\\") 'log4e:insert-start-log-quickly)
 
 ### Other
 
