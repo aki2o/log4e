@@ -63,7 +63,7 @@ You can install by the following way.
 
 ### By el-get
 
-It's available.
+2013/07/26 It's available. But, master branch only.  
 
 ### By auto-install
 
