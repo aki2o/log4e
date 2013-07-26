@@ -63,7 +63,7 @@ You can install by the following way.
 
 ### By el-get
 
-It's currently in preparation.
+It's available.
 
 ### By auto-install
 
