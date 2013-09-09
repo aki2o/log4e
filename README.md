@@ -3,6 +3,7 @@ What's this?
 
 This is a extension of Emacs provides logging framework for Elisp.
 
+
 Feature
 =======
 
@@ -10,7 +11,9 @@ Feature
 
 Write the following sexp in your elisp file.
 
-    (log4e:deflogger "hoge" "%t [%l] %m" "%H:%M:%S")
+```lisp
+(log4e:deflogger "hoge" "%t [%l] %m" "%H:%M:%S")
+```
 
 Then, you can use the following function/command.
 
@@ -56,24 +59,28 @@ The following binding is added.
 * J - log4e:next-log ... move to head of next log
 * K - log4e:previous-log ... move to head of previous log.
 
+
 Install
 =======
 
-You can install by the following way.
+### If use package.el
 
-### By el-get
+2013/07/19 It's available by using melpa.  
+
+### If use el-get.el
 
 2013/07/26 It's available. But, master branch only.  
 
-### By auto-install
+### If use auto-install.el
 
-Eval the following sexp.
+```lisp
+(auto-install-from-url "https://raw.github.com/aki2o/log4e/master/log4e.el")
+```
 
-    (auto-install-from-url "https://raw.github.com/aki2o/log4e/master/log4e.el")
+### Manually
 
-### Otherwise
+Download log4e.el and put on your load-path.
 
-Download "log4e.el" manually and put it in your load-path.
 
 Usage
 =====
@@ -84,13 +91,15 @@ For example, develop elisp with prefix "hoge".
 
 Write the following in the elisp.
 
-    (require 'log4e)
-    (log4e:deflogger "hoge" "%t [%l] %m" "%H:%M:%S" '((fatal . "fatal")
-                                                      (error . "error")
-                                                      (warn  . "warn")
-                                                      (info  . "info")
-                                                      (debug . "debug")
-                                                      (trace . "trace")))
+```lisp
+(require 'log4e)
+(log4e:deflogger "hoge" "%t [%l] %m" "%H:%M:%S" '((fatal . "fatal")
+                                                  (error . "error")
+                                                  (warn  . "warn")
+                                                  (info  . "info")
+                                                  (debug . "debug")
+                                                  (trace . "trace")))
+```
 
 `log4e:deflogger` receive the following arguments.
 
@@ -106,13 +115,15 @@ Write the following in the elisp.
 
 Develop the elisp with logging.
 
-    (defun hoge-do-hoge (hoge)
-      (if (not (stringp hoge))
-          (progn (hoge--fatal "failed do hoge : hoge is '%s'" hoge)
-                 (hoge--log-open-log-if-debug))
-        (hoge--debug "start do hoge about '%s'" hoge)
-        (message "hoge!")
-        (hoge--info "done hoge about '%s'" hoge)))
+```lisp
+(defun hoge-do-hoge (hoge)
+  (if (not (stringp hoge))
+      (progn (hoge--fatal "failed do hoge : hoge is '%s'" hoge)
+             (hoge--log-open-log-if-debug))
+    (hoge--debug "start do hoge about '%s'" hoge)
+    (message "hoge!")
+    (hoge--info "done hoge about '%s'" hoge)))
+```
 
 The logging functions are named by the 4th argument of `log4e:deflogger`.  
 The arguments of them are passed to `format` and its returned is used for the message part of log.  
@@ -130,8 +141,10 @@ For stopping logging, use `hoge--log-disable-logging`.
 By default, The logging range is from 'info' to 'fatal'.  
 So, eval the following ...
 
-    (hoge-do-hoge "HOGEGE")
-    (hoge--log-open-log)
+```lisp
+(hoge-do-hoge "HOGEGE")
+(hoge--log-open-log)
+```
 
 Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
 
@@ -139,12 +152,16 @@ Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is li
 
 If you change the logging range, eval the following sexp.
 
-    (hoge--log-set-level 'debug 'fatal)
+```lisp
+(hoge--log-set-level 'debug 'fatal)
+```
 
 Then, eval the following ...
 
-    (hoge-do-hoge "FUGAGA")
-    (hoge--log-open-log)
+```lisp
+(hoge-do-hoge "FUGAGA")
+(hoge--log-open-log)
+```
 
 Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
 
@@ -162,8 +179,10 @@ If you change the logging range anytime, write `hoge--log-set-level` in the elis
 
 When you debug the elisp, eval the following ...
 
-    (hoge--log-enable-debugging)
-    (hoge-do-hoge 'hogege)
+```lisp
+(hoge--log-enable-debugging)
+(hoge-do-hoge 'hogege)
+```
 
 Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
 
@@ -183,7 +202,9 @@ You can insert logging statement at your elisp by using `log4e:insert-start-log-
 The command insert `(hoge--log ...)` to start of pointed function/macro at the time.  
 If you want to bind some key to the command, write like the following in your .emacs or site-start.el file.
 
-    (define-key emacs-lisp-mode-map (kbd "C-\\") 'log4e:insert-start-log-quickly)
+```lisp
+(define-key emacs-lisp-mode-map (kbd "C-\\") 'log4e:insert-start-log-quickly)
+```
 
 ### Other
 
@@ -192,6 +213,7 @@ If you want to do logging with changing log level by some condition locally, use
 
 `hoge--log` is base of the logging function. About them, see Coding section above.  
 It receive a log level as 1st argument.
+
 
 Tested On
 =========
