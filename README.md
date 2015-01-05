@@ -1,67 +1,70 @@
-What's this?
-============
+[![Build Status](https://travis-ci.org/aki2o/log4e.svg?branch=master)](https://travis-ci.org/aki2o/log4e)
 
-This is a extension of Emacs provides logging framework for Elisp.
+# What's this?
 
+This is a extension of Emacs provides logging framework for Elisp.  
 
-Feature
-=======
+# Feature
 
 ### Define function for logging automatically
 
-Write the following sexp in your elisp file.
+Write the following sexp in your elisp file.  
 
 ```lisp
 (log4e:deflogger "hoge" "%t [%l] %m" "%H:%M:%S")
 ```
 
-Then, you can use the following function/command.
+Then, you can use the following function/command.  
 
-* hoge--log-fatal
-* hoge--log-error
-* hoge--log-warn
-* hoge--log-info
-* hoge--log-debug
-* hoge--log-trace
-* hoge--log
-* hoge--log-set-level
-* hoge--log-enable-logging
-* hoge--log-disable-logging
-* hoge--log-enable-debugging
-* hoge--log-disable-debugging
-* hoge--log-debugging-p
-* hoge--log-set-coding-system
-* hoge--log-set-author-mail-address
-* hoge--log-clear-log
-* hoge--log-open-log
-* hoge--log-open-log-if-debug
+-   hoge&#x2013;log-fatal
+-   hoge&#x2013;log-error
+-   hoge&#x2013;log-warn
+-   hoge&#x2013;log-info
+-   hoge&#x2013;log-debug
+-   hoge&#x2013;log-trace
+-   hoge&#x2013;log
+-   hoge&#x2013;log-fatal\*
+-   hoge&#x2013;log-error\*
+-   hoge&#x2013;log-warn\*
+-   hoge&#x2013;log-info\*
+-   hoge&#x2013;log-debug\*
+-   hoge&#x2013;log-trace\*
+-   hoge&#x2013;log\*
+-   hoge&#x2013;log-set-level
+-   hoge&#x2013;log-enable-logging
+-   hoge&#x2013;log-disable-logging
+-   hoge&#x2013;log-enable-debugging
+-   hoge&#x2013;log-disable-debugging
+-   hoge&#x2013;log-debugging-p
+-   hoge&#x2013;log-set-coding-system
+-   hoge&#x2013;log-set-author-mail-address
+-   hoge&#x2013;log-clear-log
+-   hoge&#x2013;log-open-log
+-   hoge&#x2013;log-open-log-if-debug
 
-For detail, see Usage section.
+For detail, see Usage section.  
 
 ### font-lock on logging buffer
 
-The image of logging buffer is the following ...
+Here is the image of logging buffer.
 
-![Demo1](image/demo1.png)
+![demo1](image/demo1.png)
 
-The following face is used for font-lock on logging buffer.
+The following face is used for font-lock on logging buffer.  
 
-* font-lock-doc-face
-* font-lock-keyword-face
-* font-lock-string-face
-* font-lock-warning-face
+-   font-lock-doc-face
+-   font-lock-keyword-face
+-   font-lock-string-face
+-   font-lock-warning-face
 
 ### key binding on logging buffer
 
 The mode of logging buffer is log4e-mode which is based view-mode.  
-The following binding is added.
+The following binding is added.  
+-   `J` log4e:next-log &#x2026; move to head of next log
+-   `K` log4e:previous-log &#x2026; move to head of previous log
 
-* J - log4e:next-log ... move to head of next log
-* K - log4e:previous-log ... move to head of previous log.
-
-
-Install
-=======
+# Install
 
 ### If use package.el
 
@@ -79,11 +82,9 @@ Install
 
 ### Manually
 
-Download log4e.el and put on your load-path.
+Download log4e.el and put it on your load-path.  
 
-
-Usage
-=====
+# Usage
 
 For example, develop elisp with prefix "hoge".
 
@@ -101,19 +102,19 @@ Write the following in the elisp.
                                                   (trace . "trace")))
 ```
 
-`log4e:deflogger` receive the following arguments.
+`log4e:deflogger` receives the following arguments.  
 
-1. The elisp prefix.
-2. Format of log. The following words has a special meaning in it.
-    * %t ... Replaced with the 3rd argument.
-    * %l ... Replaced with LogLevel. Its list is "TRACE", "DEBUG", "INFO", "WARN", "ERROR" and "FATAL".
-    * %m ... Replaced with given message by the logging function. About them, see Coding section below.
-3. Format of time. This value is passed to `format-time-string` and replaced with its returend.
-4. Alist of the logging function name. This is optional. If nil, This value is `log4e-default-logging-function-name-alist`.
+1.  The elisp prefix.
+2.  Format of log. The following words has a special meaning in it.
+    -   %t &#x2026; Replaced with the 3rd argument.
+    -   %l &#x2026; Replaced with LogLevel.
+    -   %m &#x2026; Replaced with given message by the logging function. About them, see Coding section below.
+3.  Format of time. This value is passed to \`format-time-string\` and replaced with its returend.
+4.  Alist of the logging function name. This is optional. If nil, This value is \`log4e-default-logging-function-name-alist\`.
 
 ### Coding
 
-Develop the elisp with logging.
+Develop the elisp with logging.  
 
 ```lisp
 (defun hoge-do-hoge (hoge)
@@ -139,16 +140,18 @@ For stopping logging, use `hoge--log-disable-logging`.
 ### Set range of logging level
 
 By default, The logging range is from 'info' to 'fatal'.  
-So, eval the following ...
+So, eval the following &#x2026;
 
 ```lisp
 (hoge-do-hoge "HOGEGE")
 (hoge--log-open-log)
 ```
 
-Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
+Then, the buffer is displayed that named ' \\\*log4e-hoge\\\*'. And the string is like the following.
 
-    12:34:56 [INFO ] done hoge about 'HOGEGE'
+```
+12:34:56 [INFO ] done hoge about 'HOGEGE'
+```
 
 If you change the logging range, eval the following sexp.
 
@@ -156,40 +159,44 @@ If you change the logging range, eval the following sexp.
 (hoge--log-set-level 'debug 'fatal)
 ```
 
-Then, eval the following ...
+Then, eval the following &#x2026;
 
 ```lisp
 (hoge-do-hoge "FUGAGA")
 (hoge--log-open-log)
 ```
 
-Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
+Then, the buffer is displayed that named ' \\\*log4e-hoge\\\*'. And the string is like the following.
 
-    12:34:56 [INFO ] done hoge about 'HOGEGE'
-    12:35:43 [DEBUG] start do hoge about 'FUGAGA'
-    12:35:43 [INFO ] done hoge about 'FUGAGA'
+```
+12:34:56 [INFO ] done hoge about 'HOGEGE'
+12:35:43 [DEBUG] start do hoge about 'FUGAGA'
+12:35:43 [INFO ] done hoge about 'FUGAGA'
+```
 
 If you change the logging range anytime, write `hoge--log-set-level` in the elisp.  
 `hoge--log-set-level` receive the following arguments.
 
-1. The lowest level for doing logging. Its list is 'trace', 'debug', 'info', 'warn', 'error' and 'fatal'.
-2. The highest level for doing logging. This is optional. If nil, This value is 'fatal'.
+1.  The lowest level for doing logging. Its list is 'trace', 'debug', 'info', 'warn', 'error' and 'fatal'.
+2.  The highest level for doing logging. This is optional. If nil, This value is 'fatal'.
 
 ### For debug
 
-When you debug the elisp, eval the following ...
+When you debug the elisp, eval the following &#x2026;
 
 ```lisp
 (hoge--log-enable-debugging)
 (hoge-do-hoge 'hogege)
 ```
 
-Then, the buffer is displayed that named ' \*log4e-hoge\*'. And the string is like the following.
+Then, the buffer is displayed that named ' \\\*log4e-hoge\\\*'. And the string is like the following.
 
-    12:34:56 [INFO ] done hoge about 'HOGEGE'
-    12:35:43 [DEBUG] start do hoge about 'FUGAGA'
-    12:35:43 [INFO ] done hoge about 'FUGAGA'
-    12:54:32 [FATAL] failed do hoge : hoge is 'hogege'
+```
+12:34:56 [INFO ] done hoge about 'HOGEGE'
+12:35:43 [DEBUG] start do hoge about 'FUGAGA'
+12:35:43 [INFO ] done hoge about 'FUGAGA'
+12:54:32 [FATAL] failed do hoge : hoge is 'hogege'
+```
 
 If you want to stop debugging, use `hoge--log-disable-debugging`.  
 If you want to verify activity of debugging in the elisp, use `hoge--log-debugging-p`.
@@ -206,20 +213,42 @@ If you want to bind some key to the command, write like the following in your .e
 (define-key emacs-lisp-mode-map (kbd "C-\\") 'log4e:insert-start-log-quickly)
 ```
 
-### Other
+### Inhibit logging statement evaluation
 
-If you want to clear the log buffer named ' \*log4e-hoge\*', use `hoge--log-clear-log`.  
-If you want to do logging with changing log level by some condition locally, use `hoge--log`.
+Arguments of logging function are evaluated even if the logging level is not a logging range
+or logging is disabled like the following code.  
 
+```lisp
+(hoge--log-set-level 'info 'fatal)
+(hoge--log-disable-logging)
+(hoge--debug "%s" (very-big-cost-function)) ; <= This is done in any situation
+(some-action)                               ; <= This will be not started until very-big-cost-function is finished
+```
+
+In the case, you are able to inhibit the evaluation using a macro version of the logging function
+like the following code.  
+
+```lisp
+(hoge--log-set-level 'info 'fatal)
+(hoge--log-disable-logging)
+(hoge--debug* "%s" (very-big-cost-function)) ; <= This is done only if this should be logged
+(some-action)                                ; <= This will be started soon
+```
+
+But, if the macro version is used frequently, the compiled file size might come big.  
+
+### Free log level function
+
+If you want to do logging with changing log level by some condition locally, use `hoge--log`.  
 `hoge--log` is base of the logging function. About them, see Coding section above.  
 It receive a log level as 1st argument.
 
+### Clean log buffer
 
-Tested On
-=========
+If you want to clear the log buffer named ' \\\*log4e-hoge\\\*', use `hoge--log-clear-log`.  
 
-* Emacs ... GNU Emacs 23.3.1 (i386-mingw-nt5.1.2600) of 2011-08-15 on GNUPACK
+# Tested On
 
+-   Emacs &#x2026; GNU Emacs 23.3.1 (i386-mingw-nt5.1.2600) of 2011-08-15 on GNUPACK
 
 **Enjoy!!!**
-
