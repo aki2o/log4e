@@ -38,6 +38,8 @@
     - hoge--log-disable-logging
     - hoge--log-enable-debugging
     - hoge--log-disable-debugging
+    - hoge--log-enable-messaging
+    - hoge--log-disable-messaging
     - hoge--log-debugging-p
     - hoge--log-set-coding-system
     - hoge--log-set-author-mail-address
@@ -208,6 +210,13 @@
     If you want to verify activity of debugging in the elisp, use =hoge--log-debugging-p=.
     
     By using =hoge--log-enable-debugging=, logging is enabled too.
+
+*** Dump log into other buffer
+
+    You are able to dump the same log into other area with logging to standard log buffer
+    by =hoge--log-enable-messaging=.  
+    The command receives an argument as a buffer. In default, it's echo area.  
+    For stopping to dump, use =hoge--log-disable-messaging=.  
 
 *** Inhibit logging statement evaluation
 
