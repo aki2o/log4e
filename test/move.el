@@ -5,8 +5,8 @@
 (expectations
   (desc "move next log")
   (expect "It's debug\nIt's error\nIt's trace\n"
-    (makunbound 'log4e--log-templete-hoge)
-    (makunbound 'log4e--time-templete-hoge)
+    (makunbound 'log4e--log-template-hoge)
+    (makunbound 'log4e--time-template-hoge)
     (log4e:deflogger "hoge" "%m" "%S")
     (hoge--log-set-level 'trace 'fatal)
     (hoge--log-enable-logging)
@@ -21,13 +21,11 @@
         (while (and (< (point) (point-max))
                     (log4e:next-log))
           (setq ret (concat ret (buffer-substring-no-properties (point-at-bol) (point-at-eol)) "\n")))
-        ret))))
-
-(expectations
+        ret)))
   (desc "move previous log")
   (expect "It's trace\nIt's error\nIt's debug\nIt's fatal\n"
-    (makunbound 'log4e--log-templete-hoge)
-    (makunbound 'log4e--time-templete-hoge)
+    (makunbound 'log4e--log-template-hoge)
+    (makunbound 'log4e--time-template-hoge)
     (log4e:deflogger "hoge" "%m" "%S")
     (hoge--log-set-level 'trace 'fatal)
     (hoge--log-enable-logging)
@@ -42,5 +40,6 @@
         (while (and (> (point) (point-min))
                     (log4e:previous-log))
           (setq ret (concat ret (buffer-substring-no-properties (point-at-bol) (point-at-eol)) "\n")))
-        ret))))
+        ret)))
+  )
 

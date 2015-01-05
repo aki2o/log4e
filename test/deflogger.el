@@ -7,16 +7,14 @@
   (expect t
     (log4e:deflogger "hoge" "%m" "%S")
     (and (boundp 'log4e--log-buffer-hoge)
-         (boundp 'log4e--log-templete-hoge)
-         (boundp 'log4e--time-templete-hoge)
+         (boundp 'log4e--log-template-hoge)
+         (boundp 'log4e--time-template-hoge)
          (boundp 'log4e--min-level-hoge)
          (boundp 'log4e--max-level-hoge)
          (boundp 'log4e--toggle-logging-hoge)
          (boundp 'log4e--toggle-debugging-hoge)
          (boundp 'log4e--buffer-coding-system-hoge)
-         (boundp 'log4e--author-mail-address-hoge))))
-
-(expectations
+         (boundp 'log4e--author-mail-address-hoge)))
   (desc "deflogger define function")
   (expect t
     (log4e:deflogger "hoge" "%m" "%S")
@@ -36,9 +34,7 @@
          (fboundp 'hoge--log-trace)
          (fboundp 'hoge--log-clear-log)
          (fboundp 'hoge--log-open-log)
-         (fboundp 'hoge--log-open-log-if-debug))))
-
-(expectations
+         (fboundp 'hoge--log-open-log-if-debug)))
   (desc "deflogger define custom function")
   (expect t
     (log4e:deflogger "fuga" "%m" "%S" '((fatal . "fat")
@@ -58,5 +54,6 @@
          (not (fboundp 'fuga--log-warn))
          (not (fboundp 'fuga--log-info))
          (not (fboundp 'fuga--log-debug))
-         (not (fboundp 'fuga--log-trace)))))
+         (not (fboundp 'fuga--log-trace))))
+  )
 

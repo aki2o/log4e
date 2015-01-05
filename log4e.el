@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: log
 ;; URL: https://github.com/aki2o/log4e
-;; Version: 0.2.0
+;; Version: 0.3.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -65,7 +65,9 @@
 ;; Enjoy!!!
 
 
+;;; Code:
 (eval-when-compile (require 'cl))
+(require 'rx)
 
 
 (defconst log4e-log-level-alist '((fatal . 6)
@@ -74,7 +76,7 @@
                                   (info  . 3)
                                   (debug . 2)
                                   (trace . 1))
-  "Alist of log level value")
+  "Alist of log level value.")
 
 (defconst log4e-default-logging-function-name-alist '((fatal . "log-fatal")
                                                       (error . "log-error")
@@ -82,10 +84,192 @@
                                                       (info  . "log-info")
                                                       (debug . "log-debug")
                                                       (trace . "log-trace"))
-  "Alist of logging function name at default")
+  "Alist of logging function name at default.")
 
 
-(defmacro* log4e:deflogger (prefix msgtmpl timetmpl &optional log-function-name-custom-alist)
+(defmacro log4e--def-symmaker (symnm)
+  `(progn
+     (defsubst ,(intern (concat "log4e--make-symbol-" symnm)) (prefix)
+       (intern (concat ,(format "log4e--%s-" symnm) prefix)))))
+
+(log4e--def-symmaker "log-buffer")
+(log4e--def-symmaker "msg-buffer")
+(log4e--def-symmaker "log-template")
+(log4e--def-symmaker "time-template")
+(log4e--def-symmaker "min-level")
+(log4e--def-symmaker "max-level")
+(log4e--def-symmaker "toggle-logging")
+(log4e--def-symmaker "toggle-debugging")
+(log4e--def-symmaker "buffer-coding-system")
+(log4e--def-symmaker "author-mail-address")
+
+(defmacro log4e--def-level-logger (prefix suffix level)
+  (let ((argform (if suffix
+                     '(msg &rest msgargs)
+                   '(level msg &rest msgargs)))
+        (buff (log4e--make-symbol-log-buffer prefix))
+        (codsys (log4e--make-symbol-buffer-coding-system prefix))
+        (logtmpl (log4e--make-symbol-log-template prefix))
+        (timetmpl (log4e--make-symbol-time-template prefix))
+        (minlvl (log4e--make-symbol-min-level prefix))
+        (maxlvl (log4e--make-symbol-max-level prefix))
+        (logging-p (log4e--make-symbol-toggle-logging prefix)))
+    `(progn
+
+       ;; Define logging function
+       (defun ,(intern (concat prefix "--" (or suffix "log"))) ,argform
+         ,(format "Do logging for %s level log.
+%sMSG/MSGARGS are passed to `format'."
+                  (or (eval level) "any")
+                  (if suffix "" "LEVEL is symbol as a log level in '(trace debug info warn error fatal).\n"))
+         (let ((log4e--current-msg-buffer ,(log4e--make-symbol-msg-buffer prefix)))
+           (apply 'log4e--logging ,buff ,codsys ,logtmpl ,timetmpl ,minlvl ,maxlvl ,logging-p ,(if suffix level 'level) msg msgargs)))
+       
+       ;; Define logging macro
+       (defmacro ,(intern (concat prefix "--" (or suffix "log") "*")) ,argform
+         ,(format "Do logging for %s level log.
+%sMSG/MSGARGS are passed to `format'.
+Evaluation of MSGARGS is invoked only if %s level log should be printed."
+                  (or (eval level) "any")
+                  (if suffix "" "LEVEL is symbol as a log level in '(trace debug info warn error fatal).\n")
+                  (or (eval level) "the"))
+         (let ((prefix ,prefix)
+               (suffix ,suffix)
+               (level ',level)
+               (msg msg)
+               (msgargs msgargs)
+               (buff (log4e--make-symbol-log-buffer ,prefix))
+               (codsys (log4e--make-symbol-buffer-coding-system ,prefix))
+               (logtmpl (log4e--make-symbol-log-template ,prefix))
+               (timetmpl (log4e--make-symbol-time-template ,prefix))
+               (minlvl (log4e--make-symbol-min-level ,prefix))
+               (maxlvl (log4e--make-symbol-max-level ,prefix))
+               (logging-p (log4e--make-symbol-toggle-logging ,prefix)))
+           `(let ((log4e--current-msg-buffer ,(log4e--make-symbol-msg-buffer prefix)))
+              (when (and ,logging-p
+                         (log4e--logging-level-p ,minlvl ,maxlvl ,level))
+                (log4e--logging ,buff ,codsys ,logtmpl ,timetmpl ,minlvl ,maxlvl ,logging-p ,(if suffix level 'level) ,msg ,@msgargs)))))
+       
+       )))
+
+(defsubst log4e--logging-level-p (minlevel maxlevel currlevel)
+  (let ((minlvlvalue (or (assoc-default minlevel log4e-log-level-alist)
+                         1))
+        (maxlvlvalue (or (assoc-default maxlevel log4e-log-level-alist)
+                         6))
+        (currlvlvalue (or (assoc-default currlevel log4e-log-level-alist)
+                          0)))
+    (and (>= currlvlvalue minlvlvalue)
+         (<= currlvlvalue maxlvlvalue))))
+
+(defsubst log4e--get-or-create-log-buffer (buffnm &optional codesys)
+  (or (get-buffer buffnm)
+      (let ((buff (get-buffer-create buffnm)))
+        (with-current-buffer buff
+          (log4e-mode)
+          (when codesys
+            (setq buffer-file-coding-system codesys)))
+        buff)))
+
+(defvar log4e--regexp-msg-format
+  (rx-to-string `(and "%"
+                      (* (any "+#-0"))        ; flags
+                      (* (any "0-9"))         ; width
+                      (? "." (+ (any "0-9"))) ; precision
+                      (any "a-zA-Z"))))
+
+(defsubst log4e--insert-log (logtmpl timetmpl level msg msgargs propertize-p)
+  (let ((timetext (format-time-string timetmpl))
+        (lvltext (format "%-05s" (upcase (symbol-name level))))
+        (buffer-read-only nil))
+    (when propertize-p
+      (put-text-property 0 (length timetext) 'face 'font-lock-doc-face timetext)
+      (put-text-property 0 (length lvltext) 'face 'font-lock-keyword-face lvltext))
+    (let* ((logtext logtmpl)
+           (logtext (replace-regexp-in-string "%t" timetext logtext))
+           (logtext (replace-regexp-in-string "%l" lvltext logtext))
+           (logtext (replace-regexp-in-string "%m" msg logtext))
+           (begin (point)))
+      (insert logtext "\n")
+      (when propertize-p
+        (put-text-property begin (+ begin 1) 'log4e--level level))
+      (loop initially (goto-char begin)
+            while (and msgargs
+                       (re-search-forward log4e--regexp-msg-format nil t))
+            for currtype = (match-string-no-properties 0)
+            for currarg = (pop msgargs)
+            for failfmt = nil
+            for currtext = (condition-case e
+                               (format currtype currarg)
+                             (error (setq failfmt t)
+                                    (format "=%s=" (error-message-string e))))
+            if propertize-p
+            do (ignore-errors
+                 (cond (failfmt (put-text-property 0 (length currtext) 'face 'font-lock-warning-face currtext))
+                       (t       (put-text-property 0 (length currtext) 'face 'font-lock-string-face currtext))))
+            do (replace-match currtext t t))
+      (goto-char begin))))
+
+(defvar log4e--current-msg-buffer nil)
+
+;; We needs this signature be stay for other compiled plugins using old version
+(defun log4e--logging (buffnm codsys logtmpl timetmpl minlevel maxlevel logging-p level msg &rest msgargs)
+  (when (and logging-p
+             (log4e--logging-level-p minlevel maxlevel level))
+    (save-match-data
+      (with-current-buffer (log4e--get-or-create-log-buffer buffnm codsys)
+        (goto-char (point-max))
+        (let* ((buffer-read-only nil)
+               (begin (point))
+               (currlog (progn
+                          (log4e--insert-log logtmpl timetmpl level msg msgargs t)
+                          (goto-char (point-max))
+                          (buffer-substring-no-properties begin (point))))
+               (msgbuf (or (when (and log4e--current-msg-buffer
+                                      (not (eq log4e--current-msg-buffer t)))
+                             (ignore-errors (get-buffer log4e--current-msg-buffer)))
+                           log4e--current-msg-buffer)))
+          (when msgbuf
+            (let ((standard-output (if (buffer-live-p msgbuf)
+                                       msgbuf
+                                     standard-output)))
+              (princ currlog))))
+        nil))))
+
+(defun log4e--get-current-log-line-level ()
+  (save-excursion
+    (beginning-of-line)
+    (get-text-property (point) 'log4e--level)))
+
+;; We needs this signature be stay for other plugins compiled with this old version
+(defun log4e--clear-log (buffnm)
+  (with-current-buffer (log4e--get-or-create-log-buffer buffnm)
+    (setq buffer-read-only nil)
+    (erase-buffer)))
+
+;; We needs this signature be stay for other plugins compiled with this old version
+(defun log4e--open-log (buffnm)
+  (let* ((buff (get-buffer buffnm)))
+    (if (not (buffer-live-p buff))
+        (message "[Log4E] Not exist log buffer.")
+      (with-current-buffer buff
+        (setq buffer-read-only t))
+      (pop-to-buffer buff))))
+
+;; We needs this signature be stay for other plugins compiled with this old version
+(defun log4e--open-log-if-debug (buffnm dbg)
+  (when dbg
+    (log4e--open-log buffnm)))
+
+;; (defun log4e--send-report-if-not-debug (buffnm dbg addr prefix)
+;;   (let* ((buff (get-buffer buffnm)))
+;;     (when (and (not dbg)
+;;                (stringp addr)
+;;                (buffer-live-p buff))
+;;       (reporter-submit-bug-report addr prefix nil nil nil nil))))
+
+
+(defmacro log4e:deflogger (prefix msgtmpl timetmpl &optional log-function-name-custom-alist)
   "Define the functions of logging for your elisp.
 
 Specification:
@@ -126,27 +310,36 @@ Argument:
 
 Functions:
  List all functions defined below. PREFIX is your prefix.
- - PREFIX--log-fatal   ... #1
- - PREFIX--log-error   ... #1
- - PREFIX--log-warn    ... #1
- - PREFIX--log-info    ... #1
- - PREFIX--log-debug   ... #1
- - PREFIX--log-trace   ... #1
+ - PREFIX--log-fatal    ... #1
+ - PREFIX--log-error    ... #1
+ - PREFIX--log-warn     ... #1
+ - PREFIX--log-info     ... #1
+ - PREFIX--log-debug    ... #1
+ - PREFIX--log-trace    ... #1
+ - PREFIX--log-fatal*   ... #2
+ - PREFIX--log-error*   ... #2
+ - PREFIX--log-warn*    ... #2
+ - PREFIX--log-info*    ... #2
+ - PREFIX--log-debug*   ... #2
+ - PREFIX--log-trace*   ... #2
  - PREFIX--log
  - PREFIX--log-set-level
- - PREFIX--log-enable-logging            ... #2
- - PREFIX--log-disable-logging           ... #2
- - PREFIX--log-enable-debugging          ... #2
- - PREFIX--log-disable-debugging         ... #2
+ - PREFIX--log-enable-logging            ... #3
+ - PREFIX--log-disable-logging           ... #3
+ - PREFIX--log-enable-messaging          ... #3
+ - PREFIX--log-disable-messaging         ... #3
+ - PREFIX--log-enable-debugging          ... #3
+ - PREFIX--log-disable-debugging         ... #3
  - PREFIX--log-debugging-p
  - PREFIX--log-set-coding-system
  - PREFIX--log-set-author-mail-address
- - PREFIX--log-clear-log                 ... #2
- - PREFIX--log-open-log                  ... #2
+ - PREFIX--log-clear-log                 ... #3
+ - PREFIX--log-open-log                  ... #3
  - PREFIX--log-open-log-if-debug
 
  #1 : You can customize this name
- #2 : This is command
+ #2 : Name is a #1 name + \"*\"
+ #3 : This is command
 
 Example:
 ;; If you develop elisp that has prefix \"hoge\", write and eval the following sexp in your elisp file.
@@ -185,36 +378,45 @@ Example:
  
 "
   (declare (indent 0))
-  (if (or (not (stringp prefix))
-          (string= prefix "")
-          (not (stringp msgtmpl))
-          (string= msgtmpl "")
-          (not (stringp timetmpl))
-          (string= timetmpl ""))
+  (if (or (not (stringp prefix))   (string= prefix "")
+          (not (stringp msgtmpl))  (string= msgtmpl "")
+          (not (stringp timetmpl)) (string= timetmpl ""))
       (message "[LOG4E] invalid argument of deflogger")
-    (let* ((buffsym (intern (concat "log4e--log-buffer-" prefix)))
-           (msgtmplsym (intern (concat "log4e--log-templete-" prefix)))
-           (timetmplsym (intern (concat "log4e--time-templete-" prefix)))
-           (minlvlsym (intern (concat "log4e--min-level-" prefix)))
-           (maxlvlsym (intern (concat "log4e--max-level-" prefix)))
-           (tglsym (intern (concat "log4e--toggle-logging-" prefix)))
-           (dbgsym (intern (concat "log4e--toggle-debugging-" prefix)))
-           (codesym (intern (concat "log4e--buffer-coding-system-" prefix)))
-           (addrsym (intern (concat "log4e--author-mail-address-" prefix)))
+    (let* ((bufsym (log4e--make-symbol-log-buffer prefix))
+           (msgbufsym (log4e--make-symbol-msg-buffer prefix))
+           (logtmplsym (log4e--make-symbol-log-template prefix))
+           (timetmplsym (log4e--make-symbol-time-template prefix))
+           (minlvlsym (log4e--make-symbol-min-level prefix))
+           (maxlvlsym (log4e--make-symbol-max-level prefix))
+           (tglsym (log4e--make-symbol-toggle-logging prefix))
+           (dbgsym (log4e--make-symbol-toggle-debugging prefix))
+           (codsyssym (log4e--make-symbol-buffer-coding-system prefix))
+           (addrsym (log4e--make-symbol-author-mail-address prefix))
            (funcnm-alist (loop with custom-alist = (car (cdr log-function-name-custom-alist))
-                               for e in (list 'fatal 'error 'warn 'info 'debug 'trace)
-                               collect (or (assq e custom-alist)
-                                           (assq e log4e-default-logging-function-name-alist)))))
+                                  for lvl in '(fatal error warn info debug trace)
+                                  for lvlpair = (assq lvl custom-alist)
+                                  for fname = (or (cdr-safe lvlpair) "")
+                                  collect (or (if (string-match "\*" fname)
+                                                  (progn
+                                                    (message "[LOG4E] ignore %s level name in log-function-name-custom-alist. can't use '*' for the name." lvl)
+                                                    nil)
+                                                lvlpair)
+                                              (assq lvl log4e-default-logging-function-name-alist)))))
       `(progn
-         (defvar ,buffsym (format " *log4e-%s*" ,prefix))
-         (defvar ,msgtmplsym ,msgtmpl)
+
+         ;; Define variable for prefix
+         (defvar ,bufsym (format " *log4e-%s*" ,prefix))
+         (defvar ,logtmplsym ,msgtmpl)
          (defvar ,timetmplsym ,timetmpl)
          (defvar ,minlvlsym 'info)
          (defvar ,maxlvlsym 'fatal)
          (defvar ,tglsym nil)
+         (defvar ,msgbufsym nil)
          (defvar ,dbgsym nil)
-         (defvar ,codesym nil)
+         (defvar ,codsyssym nil)
          (defvar ,addrsym nil)
+
+         ;; Define level set function
          (defun ,(intern (concat prefix "--log-set-level")) (minlevel &optional maxlevel)
            "Set range for doing logging.
 
@@ -222,6 +424,8 @@ MINLEVEL is symbol of lowest level for doing logging. its default is 'info.
 MAXLEVEL is symbol of highest level for doing logging. its default is 'fatal."
            (setq ,minlvlsym minlevel)
            (setq ,maxlvlsym maxlevel))
+
+         ;; Define logging toggle function
          (defun ,(intern (concat prefix "--log-enable-logging")) ()
            "Enable logging by logging functions."
            (interactive)
@@ -230,6 +434,20 @@ MAXLEVEL is symbol of highest level for doing logging. its default is 'fatal."
            "Disable logging by logging functions."
            (interactive)
            (setq ,tglsym nil))
+
+         ;; Define messaging toggle function
+         (defun ,(intern (concat prefix "--log-enable-messaging")) (&optional buffer)
+           "Enable dump the log into other buffer by logging functions.
+
+BUFFER is a buffer dumped log into. nil means *Messages* buffer."
+           (interactive)
+           (setq ,msgbufsym (or buffer t)))
+         (defun ,(intern (concat prefix "--log-disable-messaging")) ()
+           "Disable dump the log into other buffer by logging functions."
+           (interactive)
+           (setq ,msgbufsym nil))
+
+         ;; Define debugging toggle function
          (defun ,(intern (concat prefix "--log-enable-debugging")) ()
            "Enable debugging and logging.
 
@@ -245,83 +463,62 @@ MAXLEVEL is symbol of highest level for doing logging. its default is 'fatal."
            (setq ,dbgsym nil))
          (defun ,(intern (concat prefix "--log-debugging-p")) ()
            ,dbgsym)
+
+         ;; Define coding system set funtion
          (defun ,(intern (concat prefix "--log-set-coding-system")) (coding-system)
            "Set charset and linefeed of LOG-BUFFER.
 
 CODING-SYSTEM is symbol for setting to `buffer-file-coding-system'.
 LOG-BUFFER is a buffer which name is \" *log4e-PREFIX*\"."
-           (setq ,codesym coding-system))
-;;          (defun ,(intern (concat prefix "--log-set-author-mail-address")) (before-atmark after-atmark)
-;;            "Set mail address of author for elisp that has PREFIX. This value is used SEND-REPORT.
+           (setq ,codsyssym coding-system))
 
-;; BEFORE-ATMARK is string as part of mail address. If your address is \"hoge@example.co.jp\", it is \"hoge\".
-;; AFTER-ATMARK is string as part of mail address. If your address is \"hoge@example.co.jp\", it is \"example.co.jp\".
-;; SEND-REPORT is `PREFIX--log-send-report-if-not-debug'."
-;;            (setq ,addrsym (concat before-atmark "@" after-atmark)))
-         (defun ,(intern (concat prefix "--log")) (level msg &rest msgargs)
-           "Do logging for any level log.
+         ;;          ;; Define author mail set function
+         ;;          (defun ,(intern (concat prefix "--log-set-author-mail-address")) (before-atmark after-atmark)
+         ;;            "Set mail address of author for elisp that has PREFIX. This value is used SEND-REPORT.
 
-LEVEL is symbol of log level. it is member of '(trace debug info warn error fatal).
-MSG is log text. About its format, see `log4e:deflogger'.
-MSGARGS is anything. They are expand in MSG as string."
-           (apply 'log4e--logging ,buffsym ,codesym ,msgtmplsym ,timetmplsym ,minlvlsym ,maxlvlsym ,tglsym level msg msgargs))
-         (defun ,(intern (concat prefix "--" (assoc-default 'fatal funcnm-alist))) (msg &rest msgargs)
-           "Do logging for fatal level log.
+         ;; BEFORE-ATMARK is string as part of mail address. If your address is \"hoge@example.co.jp\", it is \"hoge\".
+         ;; AFTER-ATMARK is string as part of mail address. If your address is \"hoge@example.co.jp\", it is \"example.co.jp\".
+         ;; SEND-REPORT is `PREFIX--log-send-report-if-not-debug'."
+         ;;            (setq ,addrsym (concat before-atmark "@" after-atmark)))
 
-MSG is log text. About its format, see `log4e:deflogger'.
-MSGARGS is anything. They are expand in MSG as string."
-           (apply 'log4e--logging ,buffsym ,codesym ,msgtmplsym ,timetmplsym ,minlvlsym ,maxlvlsym ,tglsym 'fatal msg msgargs))
-         (defun ,(intern (concat prefix "--" (assoc-default 'error funcnm-alist))) (msg &rest msgargs)
-           "Do logging for error level log.
-
-MSG is log text. About its format, see `log4e:deflogger'.
-MSGARGS is anything. They are expand in MSG as string."
-           (apply 'log4e--logging ,buffsym ,codesym ,msgtmplsym ,timetmplsym ,minlvlsym ,maxlvlsym ,tglsym 'error msg msgargs))
-         (defun ,(intern (concat prefix "--" (assoc-default 'warn funcnm-alist))) (msg &rest msgargs)
-           "Do logging for warning level log.
-
-MSG is log text. About its format, see `log4e:deflogger'.
-MSGARGS is anything. They are expand in MSG as string."
-           (apply 'log4e--logging ,buffsym ,codesym ,msgtmplsym ,timetmplsym ,minlvlsym ,maxlvlsym ,tglsym 'warn msg msgargs))
-         (defun ,(intern (concat prefix "--" (assoc-default 'info funcnm-alist))) (msg &rest msgargs)
-           "Do logging for infomation level log.
-
-MSG is log text. About its format, see `log4e:deflogger'.
-MSGARGS is anything. They are expand in MSG as string."
-           (apply 'log4e--logging ,buffsym ,codesym ,msgtmplsym ,timetmplsym ,minlvlsym ,maxlvlsym ,tglsym 'info msg msgargs))
-         (defun ,(intern (concat prefix "--" (assoc-default 'debug funcnm-alist))) (msg &rest msgargs)
-           "Do logging for debug level log.
-
-MSG is log text. About its format, see `log4e:deflogger'.
-MSGARGS is anything. They are expand in MSG as string."
-           (apply 'log4e--logging ,buffsym ,codesym ,msgtmplsym ,timetmplsym ,minlvlsym ,maxlvlsym ,tglsym 'debug msg msgargs))
-         (defun ,(intern (concat prefix "--" (assoc-default 'trace funcnm-alist))) (msg &rest msgargs)
-           "Do logging for trace level log.
-
-MSG is log text. About its format, see `log4e:deflogger'.
-MSGARGS is anything. They are expand in MSG as string."
-           (apply 'log4e--logging ,buffsym ,codesym ,msgtmplsym ,timetmplsym ,minlvlsym ,maxlvlsym ,tglsym 'trace msg msgargs))
+         ;; Define log buffer handle function
          (defun ,(intern (concat prefix "--log-clear-log")) ()
            "Clear buffer string of buffer which name is \" *log4e-PREFIX*\"."
            (interactive)
-           (log4e--clear-log ,buffsym))
+           (log4e--clear-log ,bufsym))
          (defun ,(intern (concat prefix "--log-open-log")) ()
            "Open buffer which name is \" *log4e-PREFIX*\"."
            (interactive)
-           (log4e--open-log ,buffsym))
+           (log4e--open-log ,bufsym))
          (defun ,(intern (concat prefix "--log-open-log-if-debug")) ()
            "Open buffer which name is \" *log4e-PREFIX*\" if debugging is enabled."
-           (log4e--open-log-if-debug ,buffsym ,dbgsym))
-;;          (defun ,(intern (concat prefix "--log-send-report-if-not-debug")) ()
-;;            "Send bug report to author if debugging is disabled.
+           (log4e--open-log-if-debug ,bufsym ,dbgsym))
 
-;; The author mailaddress is set by `PREFIX--log-set-author-mail-address'.
-;; About the way of sending bug report, see `reporter-submit-bug-report'."
-;;            (log4e--send-report-if-not-debug ,buffsym ,dbgsym ,addrsym ,prefix))
+         ;;          ;; Define report send function
+         ;;          (defun ,(intern (concat prefix "--log-send-report-if-not-debug")) ()
+         ;;            "Send bug report to author if debugging is disabled.
+
+         ;; The author mailaddress is set by `PREFIX--log-set-author-mail-address'.
+         ;; About the way of sending bug report, see `reporter-submit-bug-report'."
+         ;;            (log4e--send-report-if-not-debug ,bufsym ,dbgsym ,addrsym ,prefix))
+
+         ;; Define each level logging function
+         (log4e--def-level-logger ,prefix nil nil)
+         (log4e--def-level-logger ,prefix ,(assoc-default 'fatal funcnm-alist) 'fatal)
+         (log4e--def-level-logger ,prefix ,(assoc-default 'error funcnm-alist) 'error)
+         (log4e--def-level-logger ,prefix ,(assoc-default 'warn  funcnm-alist) 'warn)
+         (log4e--def-level-logger ,prefix ,(assoc-default 'info  funcnm-alist) 'info)
+         (log4e--def-level-logger ,prefix ,(assoc-default 'debug funcnm-alist) 'debug)
+         (log4e--def-level-logger ,prefix ,(assoc-default 'trace funcnm-alist) 'trace)
+         
          ))))
 
+
 (define-derived-mode log4e-mode view-mode "Log4E"
-  ""
+  "Major mode for browsing a buffer made by log4e.
+
+\\<log4e-mode-map>
+\\{log4e-mode-map}"
   (define-key log4e-mode-map (kbd "J") 'log4e:next-log)
   (define-key log4e-mode-map (kbd "K") 'log4e:previous-log))
 
@@ -348,17 +545,17 @@ MSGARGS is anything. They are expand in MSG as string."
 (defun log4e:insert-start-log-quickly ()
   "Insert logging statment for trace level log at start of current function/macro."
   (interactive)
-  (let* ((fstartpt (when (re-search-backward "(\\(?:defun\\|defmacro\\)\\*? +\\([^ ]+\\) +(\\([^)]*\\))" nil t)
+  (let* ((fstartpt (when (re-search-backward "(\\(?:defun\\|defmacro\\|defsubst\\)\\*? +\\([^ ]+\\) +(\\([^)]*\\))" nil t)
                      (point)))
          (fncnm (when fstartpt (match-string-no-properties 1)))
          (argtext (when fstartpt (match-string-no-properties 2)))
          (prefix (save-excursion
                    (goto-char (point-min))
                    (loop while (re-search-forward "(log4e:deflogger[ \n]+\"\\([^\"]+\\)\"" nil t)
-                         for prefix = (match-string-no-properties 1)
-                         for currface = (get-text-property (match-beginning 0) 'face)
-                         if (not (eq currface 'font-lock-comment-face))
-                         return prefix))))
+                            for prefix = (match-string-no-properties 1)
+                            for currface = (get-text-property (match-beginning 0) 'face)
+                            if (not (eq currface 'font-lock-comment-face))
+                            return prefix))))
     (when (and fstartpt prefix)
       (let* ((fncnm (replace-regexp-in-string (concat "\\`" prefix "[^a-zA-Z0-9]+") "" fncnm))
              (fncnm (replace-regexp-in-string "-" " " fncnm))
@@ -367,17 +564,17 @@ MSGARGS is anything. They are expand in MSG as string."
              (argtext (replace-regexp-in-string " +$" "" argtext))
              (args (split-string argtext " +"))
              (args (loop for arg in args
-                         if (and (not (string= arg ""))
-                                 (not (string-match "\\`&" arg)))
-                         collect arg))
+                            if (and (not (string= arg ""))
+                                    (not (string-match "\\`&" arg)))
+                            collect arg))
              (logtext (loop with ret = (format "start %s." fncnm)
-                            for arg in args
-                            do (setq ret (concat ret " " arg "[%s]"))
-                            finally return ret))
-             (sexpformat (loop with ret = "(%s--log 'trace \"%s\""
                                for arg in args
-                               do (setq ret (concat ret " %s"))
-                               finally return (concat ret ")")))
+                               do (setq ret (concat ret " " arg "[%s]"))
+                               finally return ret))
+             (sexpformat (loop with ret = "(%s--log 'trace \"%s\""
+                                  for arg in args
+                                  do (setq ret (concat ret " %s"))
+                                  finally return (concat ret ")")))
              (inserttext (apply 'format sexpformat prefix logtext args)))
         (forward-char)
         (forward-sexp 3)
@@ -386,90 +583,6 @@ MSGARGS is anything. They are expand in MSG as string."
           (forward-sexp))
         (newline-and-indent)
         (insert inserttext)))))
-
-
-(defun log4e--get-current-log-line-level ()
-  (save-excursion
-    (beginning-of-line)
-    (get-text-property (point) 'log4e--level)))
-
-(defun log4e--logging (buffnm codesys msgtmpl timetmpl minlevel maxlevel tgl level msg &rest msgargs)
-  (let* ((buff (log4e--get-or-create-log-buffer buffnm codesys)))
-    (when (log4e--doing-p minlevel maxlevel level tgl)
-      (save-match-data
-        (with-current-buffer buff
-          (let* ((timetext (format-time-string timetmpl))
-                 (lvltext (format "%-05s" (upcase (symbol-name level)))))
-            (put-text-property 0 (length timetext) 'face 'font-lock-doc-face timetext)
-            (put-text-property 0 (length lvltext) 'face 'font-lock-keyword-face lvltext)
-            (let* ((logtext msgtmpl)
-                   (logtext (replace-regexp-in-string "%t" timetext logtext))
-                   (logtext (replace-regexp-in-string "%l" lvltext logtext))
-                   (logtext (replace-regexp-in-string "%m" msg logtext))
-                   (startpt (progn (goto-char (point-max))
-                                   (point))))
-              (setq buffer-read-only nil)
-              (insert logtext "\n")
-              (put-text-property startpt (+ startpt 1) 'log4e--level level)
-              (goto-char startpt)
-              (while (re-search-forward "\\(%[a-zA-Z]\\)" nil t)
-                (let* ((currtype (match-string-no-properties 1))
-                       (currarg (pop msgargs))
-                       (failfmt)
-                       (currtext (condition-case e
-                                     (format currtype currarg)
-                                   (error (setq failfmt t)
-                                          (format "=%s=" (error-message-string e))))))
-                  (ignore-errors
-                    (cond (failfmt (put-text-property 0 (length currtext) 'face 'font-lock-warning-face currtext))
-                          (t       (put-text-property 0 (length currtext) 'face 'font-lock-string-face currtext))))
-                  (replace-match currtext t t)))
-              (goto-char (point-max))
-              nil)))))))
-
-(defun log4e--get-or-create-log-buffer (buffnm &optional codesys)
-  (or (get-buffer buffnm)
-      (let* ((buff (get-buffer-create buffnm)))
-        (with-current-buffer buff
-          (log4e-mode)
-          (when codesys
-            (setq buffer-file-coding-system codesys)))
-        buff)))
-
-(defun log4e--clear-log (buffnm)
-  (with-current-buffer (log4e--get-or-create-log-buffer buffnm)
-    (setq buffer-read-only nil)
-    (erase-buffer)))
-
-(defun log4e--open-log (buffnm)
-  (let* ((buff (get-buffer buffnm)))
-    (if (not (buffer-live-p buff))
-        (message "[Log4E] Not exist log buffer.")
-      (with-current-buffer buff
-        (setq buffer-read-only t))
-      (pop-to-buffer buff))))
-
-(defun log4e--open-log-if-debug (buffnm dbg)
-  (when dbg
-    (log4e--open-log buffnm)))
-
-;; (defun log4e--send-report-if-not-debug (buffnm dbg addr prefix)
-;;   (let* ((buff (get-buffer buffnm)))
-;;     (when (and (not dbg)
-;;                (stringp addr)
-;;                (buffer-live-p buff))
-;;       (reporter-submit-bug-report addr prefix nil nil nil nil))))
-
-(defun log4e--doing-p (minlevel maxlevel currlevel tgl)
-  (let* ((minlvlvalue (or (assoc-default minlevel log4e-log-level-alist)
-                          1))
-         (maxlvlvalue (or (assoc-default maxlevel log4e-log-level-alist)
-                          6))
-         (currlvlvalue (or (assoc-default currlevel log4e-log-level-alist)
-                           0)))
-    (and tgl
-         (>= currlvlvalue minlvlvalue)
-         (<= currlvlvalue maxlvlvalue))))
 
 
 (provide 'log4e)

@@ -8,59 +8,27 @@
     (log4e:deflogger "hoge" "%m" "%S")
     (hoge--log-enable-logging)
     (hoge--log-fatal "It's fatal.")
-    (let* ((ret ""))
-      (ad-with-auto-activation-disabled
-       (flet ((message (format-string &rest args)
-                       (setq ret format-string))
-              (pop-to-buffer (buf &optional other-window norecord)
-                             (setq ret (buffer-name buf))))
-         (hoge--log-open-log)
-         ret)))))
-
-(expectations
+    (hoge--log-open-log)
+    (buffer-name))
   (desc "open killed log buffer")
   (expect "[Log4E] Not exist log buffer."
-    (log4e:deflogger "hoge" "%m" "%S")
     (kill-buffer " *log4e-hoge*")
-    (let* ((ret ""))
-      (ad-with-auto-activation-disabled
-       (flet ((message (format-string &rest args)
-                       (setq ret format-string))
-              (pop-to-buffer (buf &optional other-window norecord)
-                             (setq ret (buffer-name buf))))
-         (hoge--log-open-log)
-         ret)))))
-
-(expectations
+    (hoge--log-open-log))
   (desc "open log buffer if debugging")
   (expect " *log4e-hoge*"
-    (log4e:deflogger "hoge" "%m" "%S")
     (hoge--log-enable-logging)
     (hoge--log-enable-debugging)
     (hoge--log-fatal "It's fatal.")
-    (let* ((ret ""))
-      (ad-with-auto-activation-disabled
-       (flet ((message (format-string &rest args)
-                       (setq ret format-string))
-              (pop-to-buffer (buf &optional other-window norecord)
-                             (setq ret (buffer-name buf))))
-         (hoge--log-open-log-if-debug)
-         ret)))))
-
-(expectations
+    (hoge--log-open-log-if-debug)
+    (buffer-name))
   (desc "open log buffer if debugging")
-  (expect ""
-    (log4e:deflogger "hoge" "%m" "%S")
+  (expect t
+    (delete-window)
     (hoge--log-enable-logging)
     (hoge--log-enable-debugging)
     (hoge--log-disable-debugging)
     (hoge--log-fatal "It's fatal.")
-    (let* ((ret ""))
-      (ad-with-auto-activation-disabled
-       (flet ((message (format-string &rest args)
-                       (setq ret format-string))
-              (pop-to-buffer (buf &optional other-window norecord)
-                             (setq ret (buffer-name buf))))
-         (hoge--log-open-log-if-debug)
-         ret)))))
+    (hoge--log-open-log-if-debug)
+    (not (string= (buffer-name) " *log4e-hoge*")))
+  )
 
