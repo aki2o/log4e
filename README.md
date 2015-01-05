@@ -203,16 +203,6 @@ If you want to verify activity of debugging in the elisp, use `hoge--log-debuggi
 
 By using `hoge--log-enable-debugging`, logging is enabled too.
 
-### Insert logging statement quickly
-
-You can insert logging statement at your elisp by using `log4e:insert-start-log-quickly`.  
-The command insert `(hoge--log ...)` to start of pointed function/macro at the time.  
-If you want to bind some key to the command, write like the following in your .emacs or site-start.el file.
-
-```lisp
-(define-key emacs-lisp-mode-map (kbd "C-\\") 'log4e:insert-start-log-quickly)
-```
-
 ### Inhibit logging statement evaluation
 
 Arguments of logging function are evaluated even if the logging level is not a logging range
@@ -242,6 +232,21 @@ But, if the macro version is used frequently, the compiled file size might come 
 If you want to do logging with changing log level by some condition locally, use `hoge--log`.  
 `hoge--log` is base of the logging function. About them, see Coding section above.  
 It receive a log level as 1st argument.
+
+### Insert logging statement quickly
+
+You are able to insert logging statement quickly using `log4e:insert-start-log-quickly`.  
+
+![insert1](image/insert1.png)
+
+![insert2](image/insert2.png)
+
+If you want to bind some key to the command,
+write like the following in your .emacs or site-start.el file.  
+
+```lisp
+(define-key emacs-lisp-mode-map (kbd "C-\\") 'log4e:insert-start-log-quickly)
+```
 
 ### Clean log buffer
 
