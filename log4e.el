@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: log
 ;; URL: https://github.com/aki2o/log4e
-;; Version: 0.3.0
+;; Version: 0.3.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -514,6 +514,7 @@ LOG-BUFFER is a buffer which name is \" *log4e-PREFIX*\"."
          ))))
 
 
+;;;###autoload
 (define-derived-mode log4e-mode view-mode "Log4E"
   "Major mode for browsing a buffer made by log4e.
 
@@ -542,6 +543,7 @@ LOG-BUFFER is a buffer which name is \" *log4e-PREFIX*\"."
       (setq level (log4e--get-current-log-line-level)))
     level))
 
+;;;###autoload
 (defun log4e:insert-start-log-quickly ()
   "Insert logging statment for trace level log at start of current function/macro."
   (interactive)
