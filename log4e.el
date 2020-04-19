@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: log
 ;; URL: https://github.com/aki2o/log4e
-;; Version: 0.3.1
+;; Version: 0.3.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -108,6 +108,7 @@
                      '(msg &rest msgargs)
                    '(level msg &rest msgargs)))
         (buff (log4e--make-symbol-log-buffer prefix))
+        (msgbuff (log4e--make-symbol-msg-buffer prefix))
         (codsys (log4e--make-symbol-buffer-coding-system prefix))
         (logtmpl (log4e--make-symbol-log-template prefix))
         (timetmpl (log4e--make-symbol-time-template prefix))
@@ -120,9 +121,9 @@
        (defun ,(intern (concat prefix "--" (or suffix "log"))) ,argform
          ,(format "Do logging for %s level log.
 %sMSG/MSGARGS are passed to `format'."
-                  (or (eval level) "any")
+                  (if suffix level "any")
                   (if suffix "" "LEVEL is symbol as a log level in '(trace debug info warn error fatal).\n"))
-         (let ((log4e--current-msg-buffer ,(log4e--make-symbol-msg-buffer prefix)))
+         (let ((log4e--current-msg-buffer ,msgbuff))
            (apply 'log4e--logging ,buff ,codsys ,logtmpl ,timetmpl ,minlvl ,maxlvl ,logging-p ,(if suffix level 'level) msg msgargs)))
        
        ;; Define logging macro
@@ -130,25 +131,22 @@
          ,(format "Do logging for %s level log.
 %sMSG/MSGARGS are passed to `format'.
 Evaluation of MSGARGS is invoked only if %s level log should be printed."
-                  (or (eval level) "any")
+                  (if suffix level "any")
                   (if suffix "" "LEVEL is symbol as a log level in '(trace debug info warn error fatal).\n")
-                  (or (eval level) "the"))
-         (let ((prefix ,prefix)
-               (suffix ,suffix)
-               (level ',level)
-               (msg msg)
-               (msgargs msgargs)
+                  (if suffix level "the"))
+         (let (,@(if suffix (list `(level ',level)) '())
                (buff (log4e--make-symbol-log-buffer ,prefix))
+               (msgbuff (log4e--make-symbol-msg-buffer ,prefix))
                (codsys (log4e--make-symbol-buffer-coding-system ,prefix))
                (logtmpl (log4e--make-symbol-log-template ,prefix))
                (timetmpl (log4e--make-symbol-time-template ,prefix))
                (minlvl (log4e--make-symbol-min-level ,prefix))
                (maxlvl (log4e--make-symbol-max-level ,prefix))
                (logging-p (log4e--make-symbol-toggle-logging ,prefix)))
-           `(let ((log4e--current-msg-buffer ,(log4e--make-symbol-msg-buffer prefix)))
+           `(let ((log4e--current-msg-buffer ,msgbuff))
               (when (and ,logging-p
                          (log4e--logging-level-p ,minlvl ,maxlvl ,level))
-                (log4e--logging ,buff ,codsys ,logtmpl ,timetmpl ,minlvl ,maxlvl ,logging-p ,(if suffix level 'level) ,msg ,@msgargs)))))
+                (log4e--logging ,buff ,codsys ,logtmpl ,timetmpl ,minlvl ,maxlvl ,logging-p ,level ,msg ,@msgargs)))))
        
        )))
 
