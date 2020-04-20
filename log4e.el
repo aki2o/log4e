@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: log
 ;; URL: https://github.com/aki2o/log4e
-;; Version: 0.3.2
+;; Version: 0.3.3
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -194,18 +194,19 @@ Evaluation of MSGARGS is invoked only if %s level log should be printed."
       (loop initially (goto-char begin)
             while (and msgargs
                        (re-search-forward log4e--regexp-msg-format nil t))
-            for currtype = (match-string-no-properties 0)
-            for currarg = (pop msgargs)
-            for failfmt = nil
-            for currtext = (condition-case e
-                               (format currtype currarg)
-                             (error (setq failfmt t)
-                                    (format "=%s=" (error-message-string e))))
-            if propertize-p
-            do (ignore-errors
-                 (cond (failfmt (put-text-property 0 (length currtext) 'face 'font-lock-warning-face currtext))
-                       (t       (put-text-property 0 (length currtext) 'face 'font-lock-string-face currtext))))
-            do (replace-match currtext t t))
+            do (let* ((currtype (match-string-no-properties 0))
+                      (currarg (pop msgargs))
+                      (failfmt nil)
+                      (currtext (condition-case e
+                                    (format currtype currarg)
+                                  (error (setq failfmt t)
+                                         (format "=%s=" (error-message-string e))))))
+                 (save-match-data
+                   (when propertize-p
+                     (ignore-errors
+                       (cond (failfmt (put-text-property 0 (length currtext) 'face 'font-lock-warning-face currtext))
+                             (t       (put-text-property 0 (length currtext) 'face 'font-lock-string-face currtext))))))
+                 (replace-match currtext t t)))
       (goto-char begin))))
 
 (defvar log4e--current-msg-buffer nil)
