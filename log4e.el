@@ -241,8 +241,10 @@ Evaluation of MSGARGS is invoked only if %s level log should be printed."
     (get-text-property (point) 'log4e--level)))
 
 ;; We needs this signature be stay for other plugins compiled with this old version
-(defun log4e--clear-log (buffnm)
-  (with-current-buffer (log4e--get-or-create-log-buffer buffnm)
+(defun log4e--clear-log (&optional buffnm)
+  (interactive)
+  (with-current-buffer (log4e--get-or-create-log-buffer (or buffnm
+                                                            (current-buffer)))
     (setq buffer-read-only nil)
     (erase-buffer)))
 
@@ -520,7 +522,8 @@ LOG-BUFFER is a buffer which name is \" *log4e-PREFIX*\"."
 \\<log4e-mode-map>
 \\{log4e-mode-map}"
   (define-key log4e-mode-map (kbd "J") 'log4e:next-log)
-  (define-key log4e-mode-map (kbd "K") 'log4e:previous-log))
+  (define-key log4e-mode-map (kbd "K") 'log4e:previous-log)
+  (define-key log4e-mode-map (kbd "C-C") 'log4e--clear-log))
 
 (defun log4e:next-log ()
   "Move to start of next log on log4e-mode."
