@@ -66,7 +66,6 @@
 
 
 ;;; Code:
-(eval-when-compile (require 'cl))
 (require 'rx)
 
 
@@ -191,22 +190,22 @@ Evaluation of MSGARGS is invoked only if %s level log should be printed."
       (insert logtext "\n")
       (when propertize-p
         (put-text-property begin (+ begin 1) 'log4e--level level))
-      (loop initially (goto-char begin)
-            while (and msgargs
-                       (re-search-forward log4e--regexp-msg-format nil t))
-            do (let* ((currtype (match-string-no-properties 0))
-                      (currarg (pop msgargs))
-                      (failfmt nil)
-                      (currtext (condition-case e
-                                    (format currtype currarg)
-                                  (error (setq failfmt t)
-                                         (format "=%s=" (error-message-string e))))))
-                 (save-match-data
-                   (when propertize-p
-                     (ignore-errors
-                       (cond (failfmt (put-text-property 0 (length currtext) 'face 'font-lock-warning-face currtext))
-                             (t       (put-text-property 0 (length currtext) 'face 'font-lock-string-face currtext))))))
-                 (replace-match currtext t t)))
+      (cl-loop initially (goto-char begin)
+               while (and msgargs
+                          (re-search-forward log4e--regexp-msg-format nil t))
+               do (let* ((currtype (match-string-no-properties 0))
+                         (currarg (pop msgargs))
+                         (failfmt nil)
+                         (currtext (condition-case e
+                                       (format currtype currarg)
+                                     (error (setq failfmt t)
+                                            (format "=%s=" (error-message-string e))))))
+                    (save-match-data
+                      (when propertize-p
+                        (ignore-errors
+                          (cond (failfmt (put-text-property 0 (length currtext) 'face 'font-lock-warning-face currtext))
+                                (t       (put-text-property 0 (length currtext) 'face 'font-lock-string-face currtext))))))
+                    (replace-match currtext t t)))
       (goto-char begin))))
 
 (defvar log4e--current-msg-buffer nil)
@@ -391,7 +390,7 @@ Example:
            (dbgsym (log4e--make-symbol-toggle-debugging prefix))
            (codsyssym (log4e--make-symbol-buffer-coding-system prefix))
            (addrsym (log4e--make-symbol-author-mail-address prefix))
-           (funcnm-alist (loop with custom-alist = (car (cdr log-function-name-custom-alist))
+           (funcnm-alist (cl-loop with custom-alist = (car (cdr log-function-name-custom-alist))
                                   for lvl in '(fatal error warn info debug trace)
                                   for lvlpair = (assq lvl custom-alist)
                                   for fname = (or (cdr-safe lvlpair) "")
@@ -552,7 +551,7 @@ LOG-BUFFER is a buffer which name is \" *log4e-PREFIX*\"."
          (argtext (when fstartpt (match-string-no-properties 2)))
          (prefix (save-excursion
                    (goto-char (point-min))
-                   (loop while (re-search-forward "(log4e:deflogger[ \n]+\"\\([^\"]+\\)\"" nil t)
+                   (cl-loop while (re-search-forward "(log4e:deflogger[ \n]+\"\\([^\"]+\\)\"" nil t)
                             for prefix = (match-string-no-properties 1)
                             for currface = (get-text-property (match-beginning 0) 'face)
                             if (not (eq currface 'font-lock-comment-face))
@@ -564,15 +563,15 @@ LOG-BUFFER is a buffer which name is \" *log4e-PREFIX*\"."
              (argtext (replace-regexp-in-string "^ +" "" argtext))
              (argtext (replace-regexp-in-string " +$" "" argtext))
              (args (split-string argtext " +"))
-             (args (loop for arg in args
+             (args (cl-loop for arg in args
                             if (and (not (string= arg ""))
                                     (not (string-match "\\`&" arg)))
                             collect arg))
-             (logtext (loop with ret = (format "start %s." fncnm)
+             (logtext (cl-loop with ret = (format "start %s." fncnm)
                                for arg in args
                                do (setq ret (concat ret " " arg "[%s]"))
                                finally return ret))
-             (sexpformat (loop with ret = "(%s--log 'trace \"%s\""
+             (sexpformat (cl-loop with ret = "(%s--log 'trace \"%s\""
                                   for arg in args
                                   do (setq ret (concat ret " %s"))
                                   finally return (concat ret ")")))
