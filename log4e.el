@@ -5,7 +5,7 @@
 ;; Author: Hiroaki Otsu <ootsuhiroaki@gmail.com>
 ;; Keywords: log
 ;; URL: https://github.com/aki2o/log4e
-;; Version: 0.4.0
+;; Version: 0.4.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -88,8 +88,10 @@
                   (if suffix level "any")
                   (if suffix "" "LEVEL is symbol that is one of trace debug info warn error fatal.\n"))
          (let ((log4e--current-msg-buffer ,msgbuff))
-           (apply 'log4e--logging ,buff ,codsys ,logtmpl ,timetmpl ,minlvl ,maxlvl ,logging-p ',(if suffix level 'level) msg msgargs)))
-       
+           ,(if suffix
+                `(apply 'log4e--logging ,buff ,codsys ,logtmpl ,timetmpl ,minlvl ,maxlvl ,logging-p ',level msg msgargs)
+              `(apply 'log4e--logging ,buff ,codsys ,logtmpl ,timetmpl ,minlvl ,maxlvl ,logging-p level msg msgargs))))
+
        ;; Define logging macro
        (defmacro ,(intern (concat prefix "--" (or suffix "log") "*")) ,argform
          ,(format "Do logging for %s level log.
